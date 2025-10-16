@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مكتبة الأفلام والمسلسلات</title>
+    <meta name="description" content="تطبيق عربي شامل لإدارة وعرض الأفلام والمسلسلات من مواقع متعددة">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Login Page -->
+    <div id="loginPage" class="login-page">
+        <div class="login-container">
+            <div class="login-header">
+                <h1>🎬 بيت الافلام v1</h1>
+                <p>الرجاء إدخال كلمة المرور للدخول</p>
+            </div>
+            <div class="login-form">
+                <input type="password" id="passwordInput" placeholder="كلمة المرور" onkeypress="if(event.key==='Enter') checkPassword()">
+                <button onclick="checkPassword()" class="btn-primary">دخول</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" class="loading-indicator hidden">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <h2>جارٍ تحديث البيانات...</h2>
+            <div class="loading-progress-bar">
+                <div id="loadingProgressFill" class="loading-progress-fill"></div>
+            </div>
+            <p id="loadingProgressText">0%</p>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" class="main-app hidden">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <h1 class="app-title">🎬 بيت الأفلام v1</h1>
+                <div class="header-actions">
+                    <button onclick="loadData()" class="btn-secondary" title="جلب البيانات">
+                        🔄 جلب البيانات
+                    </button>
+                    <button onclick="toggleControlPanel()" class="btn-secondary" title="لوحة التحكم">
+                        ⚙️ لوحة التحكم
+                    </button>
+                    <button onclick="logout()" class="btn-danger" title="تسجيل خروج">
+                        🚪 خروج
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sections Navigation -->
+        <nav class="sections-nav">
+            <!-- Categories Menu Bar -->
+            <div class="categories-menu-bar">
+                <button class="category-menu-btn" onclick="toggleCategoryDropdown('generalSections')">
+                    الأقسام العامة
+                </button>
+                <button class="category-menu-btn" onclick="toggleCategoryDropdown('favoritesSections')">
+                    المفضلات
+                </button>
+                <button class="category-menu-btn" onclick="toggleCategoryDropdown('privateSections')">
+                    الأقسام الخاصة
+                </button>
+                <button class="category-menu-btn" onclick="toggleCategoryDropdown('privateFavoritesSections')">
+                    المفضلات الخاصة
+                </button>
+                <button class="category-menu-btn" onclick="showSection('sites')">
+                    قسم المواقع
+                </button>
+            </div>
+
+            <!-- General Sections Dropdown -->
+            <div id="generalSections" class="sections-dropdown hidden">
+                <div class="sections-dropdown-content">
+                <button class="section-btn" onclick="showSection('all')">
+                    جميع الأفلام والمسلسلات <span class="counter" id="counter-all">0</span>
+                </button>
+                <button class="section-btn" onclick="showSection('old_arabic')">
+                    الأفلام العربية القديمة <span class="counter" id="counter-old_arabic">0</span>
+                </button>
+                <button class="section-btn" onclick="showSection('new_arabic')">
+                    الأفلام العربية الجديدة <span class="counter" id="counter-new_arabic">0</span>
+                </button>
+                <button class="section-btn" onclick="showSection('series')">
+                    المسلسلات <span class="counter" id="counter-series">0</span>
+                </button>
+                <button class="section-btn" onclick="showSection('foreign1')">
+                    الأفلام الأجنبية 1 <span class="counter" id="counter-foreign1">0</span>
+                </button>
+                <button class="section-btn" onclick="showSection('foreign2')">
+                    الأفلام الأجنبية 2 <span class="counter" id="counter-foreign2">0</span>
+                </button>
+                <button class="section-btn" onclick="showSection('foreign3')">
+                    الأفلام الأجنبية 3 <span class="counter" id="counter-foreign3">0</span>
+                </button>
+                <button class="section-btn" onclick="showSection('franchises')">
+                    سلاسل الأفلام <span class="counter" id="counter-franchises">0</span>
+                </button>
+                <button class="section-btn" onclick="showSection('indian')">
+                    الأفلام الهندية <span class="counter" id="counter-indian">0</span>
+                </button>
+                <button class="section-btn" onclick="showSection('asian')">
+                    الأفلام الآسيوية <span class="counter" id="counter-asian">0</span>
+                </button>
+                <button class="section-btn" onclick="showSection('horror')">
+                    أفلام الرعب <span class="counter" id="counter-horror">0</span>
+                </button>
+                <button class="section-btn" onclick="showSection('stars')">
+                    أفلام النجوم <span class="counter" id="counter-stars">0</span>
+                </button>
+                <button class="section-btn" onclick="showSection('various')">
+                    الأفلام المتنوعة <span class="counter" id="counter-various">0</span>
+                </button>
+                </div>
+            </div>
+
+            <!-- Favorites Sections Dropdown -->
+            <div id="favoritesSections" class="sections-dropdown hidden">
+                <div class="sections-dropdown-content">
+                    <button class="section-btn subsection-general" onclick="showSection('selected1')">
+                        أفلام مختارة 1 <span class="counter" id="counter-selected1">0</span>
+                    </button>
+                    <button class="section-btn subsection-general" onclick="showSection('selected2')">
+                        أفلام مختارة 2 <span class="counter" id="counter-selected2">0</span>
+                    </button>
+                    <button class="section-btn subsection-general" onclick="showSection('favorites1')">
+                        المفضلة 1 <span class="counter" id="counter-favorites1">0</span>
+                    </button>
+                    <button class="section-btn subsection-general" onclick="showSection('favorites2')">
+                        المفضلة 2 <span class="counter" id="counter-favorites2">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Private Sections Dropdown -->
+            <div id="privateSections" class="sections-dropdown hidden">
+                <div class="sections-dropdown-content">
+                    <button class="section-btn private" onclick="showSection('r1')">
+                        الأفلام R1 <span class="counter" id="counter-r1">0</span>
+                    </button>
+                    <button class="section-btn private" onclick="showSection('r2')">
+                        الأفلام R2 <span class="counter" id="counter-r2">0</span>
+                    </button>
+                    <button class="section-btn private" onclick="showSection('s1')">
+                        الأفلام S1 <span class="counter" id="counter-s1">0</span>
+                    </button>
+                    <button class="section-btn private" onclick="showSection('s2')">
+                        الأفلام S2 <span class="counter" id="counter-s2">0</span>
+                    </button>
+                    <button class="section-btn private" onclick="showSection('x1')">
+                        الأفلام X1 <span class="counter" id="counter-x1">0</span>
+                    </button>
+                    <button class="section-btn private" onclick="showSection('xsites')">
+                        X SITES <span class="counter" id="counter-xsites">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Private Favorites Sections Dropdown -->
+            <div id="privateFavoritesSections" class="sections-dropdown hidden">
+                <div class="sections-dropdown-content">
+                    <button class="section-btn private subsection-private" onclick="showSection('selected_r')">
+                        أفلام مختارة R <span class="counter" id="counter-selected_r">0</span>
+                    </button>
+                    <button class="section-btn private subsection-private" onclick="showSection('selected_s')">
+                        أفلام مختارة S <span class="counter" id="counter-selected_s">0</span>
+                    </button>
+                    <button class="section-btn private subsection-private" onclick="showSection('selected_x')">
+                        أفلام مختارة X <span class="counter" id="counter-selected_x">0</span>
+                    </button>
+                    <button class="section-btn private subsection-special" onclick="showSection('thursday_night')">
+                        <span style="color: hsl(0, 70%, 55%);">قسم ليلة الخميس</span> <span class="counter" id="counter-thursday_night">0</span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Quick Add Bar -->
+        <section class="quick-add-bar">
+            <div class="quick-add-content">
+                <div class="input-group">
+                    <input type="text" id="quickAddLink" placeholder="🔗 رابط الفيلم أو اسحب وأفلت" class="input-field">
+                    <input type="text" id="quickAddName" placeholder="📝 اسم الفيلم (اختياري)" class="input-field">
+                    <select id="quickAddCategory" class="select-field">
+                        <option value="">اختر القسم</option>
+                        <option value="all">جميع الأفلام والمسلسلات</option>
+                        <option value="old_arabic">الأفلام العربية القديمة</option>
+                        <option value="new_arabic">الأفلام العربية الجديدة</option>
+                        <option value="series">المسلسلات</option>
+                        <option value="foreign1">الأفلام الأجنبية 1</option>
+                        <option value="foreign2">الأفلام الأجنبية 2</option>
+                        <option value="foreign3">الأفلام الأجنبية 3</option>
+                        <option value="franchises">سلاسل الأفلام</option>
+                        <option value="indian">الأفلام الهندية</option>
+                        <option value="asian">الأفلام الآسيوية</option>
+                        <option value="horror">أفلام الرعب</option>
+                        <option value="stars">أفلام النجوم</option>
+                        <option value="various">الأفلام المتنوعة</option>
+                        <option value="selected1">أفلام مختارة 1</option>
+                        <option value="selected2">أفلام مختارة 2</option>
+                        <option value="favorites1">المفضلة 1</option>
+                        <option value="favorites2">المفضلة 2</option>
+                    </select>
+                    <button onclick="quickAddMovie()" class="btn-primary">➕ إضافة الفيلم</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Search Bar -->
+        <section class="search-bar">
+            <div class="search-content">
+                <input type="text" id="searchInput" placeholder="🔍 ابحث عن فيلم أو مسلسل..." class="search-field">
+                <button onclick="searchInternal()" class="btn-search">بحث داخلي</button>
+                <button onclick="searchGoogle()" class="btn-search">بحث في Google</button>
+                <button onclick="searchYandex()" class="btn-search">بحث في Yandex</button>
+            </div>
+        </section>
+
+        <!-- Zoom Control is moved to pagination -->
+
+        <!-- Control Panel (Modal) -->
+        <div id="controlPanel" class="control-panel hidden">
+            <div class="control-panel-content">
+                <div class="control-panel-header">
+                    <h2>⚙️ لوحة التحكم</h2>
+                    <button onclick="toggleControlPanel()" class="btn-close">✖</button>
+                </div>
+                
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab('protection')">🔒 الحماية</button>
+                    <button class="tab-btn" onclick="switchTab('data')">💾 حفظ واستعادة</button>
+                    <button class="tab-btn" onclick="switchTab('addMovies')">➕ إضافة أفلام</button>
+                    <button class="tab-btn" onclick="switchTab('manageSections')">📂 إدارة الأقسام</button>
+                    <button class="tab-btn" onclick="switchTab('manageSubsections')">📋 إدارة الأقسام الفرعية</button>
+                    <button class="tab-btn" onclick="switchTab('manageSites')">🌐 إدارة المواقع</button>
+                </div>
+
+                <div class="tab-content">
+                    <!-- Tab 1: Protection -->
+                    <div id="protectionTab" class="tab-pane active">
+                        <h3>الحماية وكلمات المرور</h3>
+                        <div class="form-group">
+                            <label>تغيير كلمة المرور الكاملة (5555):</label>
+                            <input type="password" id="newFullPassword" class="input-field">
+                            <button onclick="changePassword('full')" class="btn-primary">تغيير</button>
+                        </div>
+                        <div class="form-group">
+                            <label>تغيير كلمة المرور العائلية (565999):</label>
+                            <input type="password" id="newFamilyPassword" class="input-field">
+                            <button onclick="changePassword('family')" class="btn-primary">تغيير</button>
+                        </div>
+                        <div class="form-group">
+                            <label>إظهار/إخفاء صفحة تسجيل الدخول:</label>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="loginPageToggle" checked onchange="toggleLoginPage()">
+                                <label for="loginPageToggle" class="toggle-label"></label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>الوضع العائلي (إخفاء الأقسام الخاصة):</label>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="familyModeToggle" onchange="toggleFamilyMode()">
+                                <label for="familyModeToggle" class="toggle-label"></label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: Save & Restore Data -->
+                    <div id="dataTab" class="tab-pane">
+                        <h3>حفظ واستعادة البيانات</h3>
+                        <div class="form-group">
+                            <button onclick="exportAllData()" class="btn-success">📥 تصدير جميع البيانات</button>
+                        </div>
+                        <div class="form-group">
+                            <button onclick="exportToMultipleFiles()" class="btn-success">📦 تصدير إلى ملفات متعددة (GitHub)</button>
+                            <small style="display: block; margin-top: 5px; color: var(--text-secondary);">لتصدير البيانات في ملفات منفصلة لا تتجاوز 24 ميجابايت</small>
+                        </div>
+                        <div class="form-group">
+                            <label>استيراد البيانات (اسحب وأفلت أو اختر):</label>
+                            <input type="file" id="importDataFile" accept=".json" onchange="importAllData()">
+                            <div id="importProgress" class="progress-bar hidden">
+                                <div id="importProgressBar" class="progress-fill"></div>
+                                <span id="importProgressText">0%</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <button onclick="deleteAllData()" class="btn-danger">🗑️ حذف جميع البيانات</button>
+                        </div>
+                    </div>
+
+                    <!-- Tab 3: Add Movies -->
+                    <div id="addMoviesTab" class="tab-pane">
+                        <h3>إضافة أفلام</h3>
+                        <div class="form-group">
+                            <label>إضافة جماعية (JSON) - يمكن اختيار عدة ملفات:</label>
+                            <input type="file" id="bulkAddFile" accept=".json" multiple>
+                            <select id="bulkAddSection" class="select-field"></select>
+                            <button onclick="bulkAddMovies()" class="btn-primary">إضافة</button>
+                        </div>
+                        <div class="form-group">
+                            <label>إضافة يدوية:</label>
+                            <input type="text" id="manualMovieName" placeholder="اسم الفيلم" class="input-field">
+                            <input type="text" id="manualMovieLink" placeholder="رابط الفيلم" class="input-field">
+                            <input type="text" id="manualMovieImage" placeholder="رابط الصورة (اختياري)" class="input-field">
+                            <select id="manualMovieSection" class="select-field"></select>
+                            <button onclick="manualAddMovie()" class="btn-primary">إضافة فيلم</button>
+                        </div>
+                    </div>
+
+                    <!-- Tab 4: Manage Sections -->
+                    <div id="manageSectionsTab" class="tab-pane">
+                        <h3>إدارة الأقسام</h3>
+                        <div class="form-group">
+                            <select id="selectedSection" class="select-field" onchange="showSectionInfo()"></select>
+                            <p id="sectionInfo"></p>
+                        </div>
+                        <div class="form-group">
+                            <label>نقل الأفلام إلى قسم آخر:</label>
+                            <select id="targetSection" class="select-field"></select>
+                            <button onclick="moveMovies()" class="btn-primary">نقل</button>
+                        </div>
+                        <div class="form-group">
+                            <button onclick="deleteSectionMovies()" class="btn-danger">حذف جميع الأفلام في القسم</button>
+                        </div>
+                        <div class="form-group">
+                            <button onclick="exportSection()" class="btn-success">تصدير القسم</button>
+                            <input type="file" id="importSectionFile" accept=".json">
+                            <button onclick="importSection()" class="btn-primary">استيراد للقسم</button>
+                        </div>
+                        <div class="form-group">
+                            <label>تنظيف العناوين (حذف كلمات محددة):</label>
+                            <input type="text" id="wordsToRemove" placeholder="اكتب الكلمات مفصولة بفاصلة" class="input-field">
+                            <button onclick="cleanTitles()" class="btn-primary">تنظيف</button>
+                        </div>
+                    </div>
+
+                    <!-- Tab 5: Manage Subsections -->
+                    <div id="manageSubsectionsTab" class="tab-pane">
+                        <h3>إدارة الأقسام الفرعية</h3>
+                        <div class="form-group">
+                            <h4>الأقسام العامة الفرعية:</h4>
+                            <button onclick="exportSubsections('general')" class="btn-success">تصدير الكل</button>
+                            <input type="file" id="importGeneralSubsections" accept=".json">
+                            <button onclick="importSubsections('general')" class="btn-primary">استيراد الكل</button>
+                        </div>
+                        <div class="form-group">
+                            <h4>الأقسام الخاصة الفرعية:</h4>
+                            <button onclick="exportSubsections('private')" class="btn-success">تصدير الكل</button>
+                            <input type="file" id="importPrivateSubsections" accept=".json">
+                            <button onclick="importSubsections('private')" class="btn-primary">استيراد الكل</button>
+                        </div>
+                    </div>
+
+                    <!-- Tab 6: Manage Sites -->
+                    <div id="manageSitesTab" class="tab-pane">
+                        <h3>إدارة المواقع</h3>
+                        <div class="form-group">
+                            <select id="selectedSite" class="select-field" onchange="showSiteInfo()"></select>
+                            <p id="siteInfo"></p>
+                        </div>
+                        <div class="form-group">
+                            <button onclick="hideSiteMovies()" class="btn-warning">إخفاء أفلام الموقع</button>                            <button onclick="showSiteMovies()" class="btn-success">إظهار أفلام الموقع</button>
+                            <button onclick="deleteSiteMovies()" class="btn-danger">حذف أفلام الموقع</button>
+                        </div>
+                        <div class="form-group">
+                            <label>نقل أفلام الموقع إلى قسم آخر:</label>
+                            <select id="targetSectionForSite" class="select-field"></select>
+                            <button onclick="moveSiteMovies()" class="btn-primary">نقل</button>
+                        </div>
+                        <div class="form-group">
+                            <h4>المواقع المخفية:</h4>
+                            <div id="hiddenSitesList"></div>
+                            <button onclick="restoreAllHidden()" class="btn-success">استعادة الكل</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section Title -->
+        <div style="text-align: center; margin: 1rem 0;">
+            <h2 id="sectionTitle" style="font-size: 1.8rem; color: hsl(var(--accent-gold)); font-weight: 700;"></h2>
+        </div>
+
+        <!-- Sorting & Display Controls -->
+        <div class="display-controls">
+            <label>ترتيب حسب:</label>
+            <select id="sortBy" class="select-field" onchange="handleSortChange()">
+                <option value="date_desc">تاريخ الإضافة (الأحدث)</option>
+                <option value="date_asc">تاريخ الإضافة (الأقدم)</option>
+                <option value="name_asc">الاسم (أ-ي)</option>
+                <option value="name_desc">الاسم (ي-أ)</option>
+                <option value="site">حسب الموقع</option>
+            </select>
+            <div id="siteSortContainer" class="hidden" style="margin-right: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                <label for="siteSort">الموقع:</label>
+                <select id="siteSort" class="select-field" onchange="applySorting()"></select>
+            </div>
+        </div>
+
+        <!-- Movies Container -->
+        <main class="movies-container" id="moviesContainer">
+            <!-- Movies will be dynamically loaded here -->
+        </main>
+
+        <!-- Load More Button -->
+        <div id="loadMoreContainer" style="text-align: center; margin: 2rem 0; display: none;">
+            <button id="loadMoreBtn" class="btn-primary" style="padding: 10px 25px; font-size: 1.1rem;">
+                تحميل المزيد من النتائج
+            </button>
+            <span id="loadMoreCounter" class="load-more-counter" style="margin-right: 15px; font-weight: bold;"></span>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination" id="pagination">
+            <button onclick="changePage('prev')" class="btn-page">◀ السابق</button>
+            <div id="pageNumbers" class="page-numbers"></div>
+            <button onclick="changePage('next')" class="btn-page">التالي ▶</button>
+            <button onclick="changePage('last')" class="btn-page">الأخيرة ⏭</button>
+            <div class="zoom-control-container">
+                <button id="zoomToggle" class="zoom-toggle-btn">🔍</button>
+                <div class="zoom-control">
+                    <button onclick="changeZoom(-10)" class="btn-zoom">➖</button>
+                    <span id="zoomLevel">100%</span>
+                    <button onclick="changeZoom(10)" class="btn-zoom">➕</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Movie Modal -->
+    <div id="editModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>تعديل بيانات الفيلم</h3>
+                <button onclick="closeEditModal()" class="btn-close">✖</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editMovieId">
+                <div class="form-group">
+                    <label>اسم الفيلم:</label>
+                    <input type="text" id="editMovieName" class="input-field">
+                </div>
+                <div class="form-group">
+                    <label>رابط الفيلم:</label>
+                    <input type="text" id="editMovieLink" class="input-field">
+                </div>
+                <div class="form-group">
+                    <label>رابط الصورة:</label>
+                    <input type="text" id="editMovieImage" class="input-field">
+                </div>
+                <div class="form-group">
+                    <label>القسم:</label>
+                    <select id="editMovieCategory" class="select-field"></select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="saveMovieEdit()" class="btn-success">حفظ التغييرات</button>
+                <button onclick="deleteMovie()" class="btn-danger">حذف الفيلم</button>
+                <button onclick="closeEditModal()" class="btn-secondary">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
