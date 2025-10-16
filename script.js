@@ -16,8 +16,6 @@ let appData = {
 };
 let isInitialized = false;
 let dataWorker; // Make worker global so it can be accessed by the load more button
-let backupMovies = [];
-let isBackupLoaded = false;
 
 // Attach primary event listeners on DOMContentLoaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -32,13 +30,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add listener for the new 'Load More' button
     const loadMoreBtn = document.getElementById('loadMoreBtn');
     if (loadMoreBtn) {
-        loadMoreBtn.addEventListener('click', async () => {
+        loadMoreBtn.addEventListener('click', () => {
             if (dataWorker) {
                 loadMoreBtn.textContent = 'جاري التحميل...';
                 loadMoreBtn.disabled = true;
                 dataWorker.postMessage({ command: 'loadNextChunk' });
-                // Also load remaining backup chunks if needed
-                await loadRemainingBackupChunks();
             }
         });
     }
@@ -121,10 +117,9 @@ async function initializeApplication() {
             }
         });
     }
-    // Initialize the worker first to show the loading indicator
+
+    // Call the new worker-based initializer
     initializeApplicationWithWorker();
-    // Then load backup movies in parallel
-    loadBackupMovies();
 }
 
 function logout() {
@@ -321,127 +316,34 @@ function parseAndAddMovies(movies, format = 'default') {
     });
 }
 
-async function loadData() {
-    await updateFromBackup();
-}
-
-async function updateFromBackup() {
-    if (!isBackupLoaded) {
-        await loadBackupMovies();
-    }
-
-    if (backupMovies.length === 0) {
-        alert('لم يتم العثور على بيانات احتياطية.');
-        return;
-    }
-
-    let newMoviesCount = 0;
-    const existingMovieIds = new Set(appData.movies.map(m => m.id));
-
-    backupMovies.forEach(backupMovie => {
-        if (!existingMovieIds.has(backupMovie.id)) {
-            appData.movies.push(backupMovie);
-            newMoviesCount++;
-        }
-    });
-
-    if (newMoviesCount > 0) {
-        saveData();
-        updateCounters();
-        displayMovies();
-        alert(`تمت إضافة ${newMoviesCount} أفلام جديدة من النسخة الاحتياطية.`);
-    } else {
-        alert('البيانات محدثة بالفعل. لا توجد أفلام جديدة لإضافتها.');
-    }
-}
-
-
-async function loadBackupMovies() {
-    if (isBackupLoaded) return;
-
-    console.log("Loading backup movies from chunks...");
-    const chunkFiles = [
-        'database_chunks/app_database1.json',
-        'database_chunks/app_database2.json',
-        'database_chunks/app_database3.json',
-        'database_chunks/app_database4.json',
-        'database_chunks/app_database5.json',
-        'database_chunks/app_database6.json'
-    ];
-
-    // Load only the first chunk initially, load the rest when needed
+function loadData() {
     try {
-        const response = await fetch(chunkFiles[0]);
-        if (!response.ok) {
-            console.error(`Failed to fetch ${chunkFiles[0]}: ${response.statusText}`);
-        } else {
-            const data = await response.json();
-            if (data.movies_info) {
-                data.movies_info.forEach(movie => {
-                    const movieData = {
-                        id: movie.movies_id || movie.id || `movie_${Date.now()}_${Math.random()}`,
-                        title: movie.movies_name || movie.series_name || movie.name || 'بدون عنوان',
-                        imageUrl: movie.movies_img || movie.series_img || movie.img || 'https://via.placeholder.com/200x300?text=No+Image',
-                        link: movie.movies_href || movie.series_href || movie.href || '#',
-                        category: movie.movies_category || movie.category || 'all',
-                        hidden: movie.movies_hidden || movie.hidden || false,
-                        site: extractSiteName(movie.movies_href || movie.series_href || movie.href || ''),
-                        dateAdded: movie.dateAdded || movie.addedDate || new Date().toISOString(),
-                        isFavorite: movie.isFavorite || false
-                    };
-                    backupMovies.push(movieData);
-                });
+        const savedData = localStorage.getItem('app_database');
+        if (savedData) {
+            const parsed = JSON.parse(savedData);
+            if (parsed.movies_info) {
+                // This is a fallback and might be slow, but it's better than nothing
+                // if file loading fails.
+                appData.movies = parsed.movies_info.map((movie, index) => ({
+                    id: movie.movies_id || `movie_${Date.now()}_${index}`,
+                    title: movie.movies_name || movie.series_name || 'بدون عنوان',
+                    imageUrl: movie.movies_img || movie.series_img || 'https://via.placeholder.com/200x300?text=No+Image',
+                    link: movie.movies_href || movie.series_href || '#',
+                    category: movie.movies_category || 'all',
+                    hidden: movie.movies_hidden || false,
+                    site: extractSiteName(movie.movies_href || movie.series_href || ''),
+                    dateAdded: movie.dateAdded || new Date().toISOString(),
+                    isFavorite: movie.isFavorite || false
+                }));
+            }
+            if (parsed.settings) {
+                appData.settings = { ...appData.settings, ...parsed.settings };
             }
         }
     } catch (error) {
-        console.error(`Error loading or parsing ${chunkFiles[0]}:`, error);
+        console.error('Error loading data from localStorage:', error);
     }
-
-    // Store remaining chunk files for later loading
-    window.remainingBackupChunks = chunkFiles.slice(1);
-    isBackupLoaded = true;
-    console.log(`Initial backup loaded with ${backupMovies.length} movies.`);
 }
-
-// Function to load remaining backup chunks when needed
-async function loadRemainingBackupChunks() {
-    if (!window.remainingBackupChunks || window.remainingBackupChunks.length === 0) return;
-
-    console.log("Loading remaining backup chunks...");
-
-    for (const file of window.remainingBackupChunks) {
-        try {
-            const response = await fetch(file);
-            if (!response.ok) {
-                console.error(`Failed to fetch ${file}: ${response.statusText}`);
-                continue;
-            }
-            const data = await response.json();
-            if (data.movies_info) {
-                data.movies_info.forEach(movie => {
-                    const movieData = {
-                        id: movie.movies_id || movie.id || `movie_${Date.now()}_${Math.random()}`,
-                        title: movie.movies_name || movie.series_name || movie.name || 'بدون عنوان',
-                        imageUrl: movie.movies_img || movie.series_img || movie.img || 'https://via.placeholder.com/200x300?text=No+Image',
-                        link: movie.movies_href || movie.series_href || movie.href || '#',
-                        category: movie.movies_category || movie.category || 'all',
-                        hidden: movie.movies_hidden || movie.hidden || false,
-                        site: extractSiteName(movie.movies_href || movie.series_href || movie.href || ''),
-                        dateAdded: movie.dateAdded || movie.addedDate || new Date().toISOString(),
-                        isFavorite: movie.isFavorite || false
-                    };
-                    backupMovies.push(movieData);
-                });
-            }
-        } catch (error) {
-            console.error(`Error loading or parsing ${file}:`, error);
-        }
-    }
-
-    window.remainingBackupChunks = [];
-    console.log(`All backup chunks loaded. Total: ${backupMovies.length} movies.`);
-}
-
 
 function saveData() {
     try {
@@ -712,32 +614,20 @@ function displayMovies() {
     const endIndex = startIndex + appData.itemsPerPage;
     const paginatedMovies = moviesToShow.slice(startIndex, endIndex);
     
-    paginatedMovies.forEach((movie, index) => {
-        const card = createMovieCard(movie, index);
+    paginatedMovies.forEach(movie => {
+        const card = createMovieCard(movie);
         container.appendChild(card);
     });
     
     updatePagination(moviesToShow.length);
-
-    const loadMoreCounter = document.getElementById('loadMoreCounter');
-    if (loadMoreCounter && isBackupLoaded) {
-        const totalMoviesInSection = appData.currentSection === 'all'
-            ? backupMovies.length
-            : backupMovies.filter(m => m.category === appData.currentSection).length;
-        
-        const currentMovieCount = moviesToShow.length;
-        
-        loadMoreCounter.textContent = `${currentMovieCount} / ${totalMoviesInSection}`;
-    }
 }
 
-function createMovieCard(movie, index) {
+function createMovieCard(movie) {
     const card = document.createElement('div');
     card.className = 'movie-card';
     
     card.innerHTML = `
         <div class="movie-poster-container">
-            <span class="movie-number">${(appData.currentPage - 1) * appData.itemsPerPage + index + 1}</span>
             <span class="movie-site" title="${movie.site}">${movie.site}</span>
             <img src="${movie.imageUrl}" alt="${movie.title}" class="movie-poster" 
                  onerror="this.src='https://via.placeholder.com/200x300?text=No+Image'">
@@ -1048,10 +938,7 @@ function changePage(direction) {
     }
     
     displayMovies();
-    const moviesContainer = document.getElementById('moviesContainer');
-    if (moviesContainer) {
-        moviesContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function changeZoom(delta) {
@@ -1081,8 +968,6 @@ function toggleControlPanel() {
     
     if (password === appData.settings.fullPassword) {
         panel.classList.remove('hidden');
-        // ملء قوائم الاختيار عند فتح لوحة التحكم
-        populateControlPanelSelects();
     } else {
         alert('كلمة المرور غير صحيحة');
     }
@@ -1094,11 +979,6 @@ function switchTab(tabName) {
     
     event.target.classList.add('active');
     document.getElementById(tabName + 'Tab').classList.add('active');
-    
-    // إعادة ملء القوائم عند التبديل إلى التبويبات التي تحتوي على قوائم اختيار
-    if (tabName === 'addMovies' || tabName === 'manageSections' || tabName === 'manageSites') {
-        setTimeout(() => populateControlPanelSelects(), 100);
-    }
 }
 
 function changePassword(type) {
@@ -1456,30 +1336,6 @@ function populateSelects() {
             });
         }
     });
-
-    // تحديد وتعبئة قائمة الاختيار للقسم الهدف في قسم إدارة الأقسام
-    const targetSectionSelect = document.getElementById('targetSection');
-    if (targetSectionSelect && targetSectionSelect.innerHTML === '') {
-        targetSectionSelect.innerHTML = '<option value="">اختر القسم</option>';
-        categories.forEach(cat => {
-            const option = document.createElement('option');
-            option.value = cat.value;
-            option.textContent = cat.label;
-            targetSectionSelect.appendChild(option);
-        });
-    }
-
-    // تحديد وتعبئة قائمة الاختيار للقسم الهدف في قسم إدارة المواقع
-    const targetSectionForSiteSelect = document.getElementById('targetSectionForSite');
-    if (targetSectionForSiteSelect && targetSectionForSiteSelect.innerHTML === '') {
-        targetSectionForSiteSelect.innerHTML = '<option value="">اختر القسم</option>';
-        categories.forEach(cat => {
-            const option = document.createElement('option');
-            option.value = cat.value;
-            option.textContent = cat.label;
-            targetSectionForSiteSelect.appendChild(option);
-        });
-    }
     
     const sites = [...new Set(appData.movies.map(m => m.site))].sort();
     const siteSelect = document.getElementById('selectedSite');
@@ -1942,117 +1798,4 @@ function setupHeaderScrollBehavior() {
         
         lastScrollTop = scrollTop;
     });
-}
-
-// وظيفة جديدة لملء قوائم الاختيار في لوحة التحكم
-function populateControlPanelSelects() {
-    console.log("Populating control panel selects...");
-    
-    const categories = [
-        { value: 'all', label: 'جميع الأفلام والمسلسلات' },
-        { value: 'old_arabic', label: 'الأفلام العربية القديمة' },
-        { value: 'new_arabic', label: 'الأفلام العربية الجديدة' },
-        { value: 'series', label: 'المسلسلات' },
-        { value: 'foreign1', label: 'الأفلام الأجنبية 1' },
-        { value: 'foreign2', label: 'الأفلام الأجنبية 2' },
-        { value: 'foreign3', label: 'الأفلام الأجنبية 3' },
-        { value: 'franchises', label: 'سلاسل الأفلام' },
-        { value: 'indian', label: 'الأفلام الهندية' },
-        { value: 'asian', label: 'الأفلام الآسيوية' },
-        { value: 'horror', label: 'أفلام الرعب' },
-        { value: 'stars', label: 'أفلام النجوم' },
-        { value: 'various', label: 'الأفلام المتنوعة' },
-        { value: 'selected1', label: 'أفلام مختارة 1' },
-        { value: 'selected2', label: 'أفلام مختارة 2' },
-        { value: 'favorites1', label: 'المفضلة 1' },
-        { value: 'favorites2', label: 'المفضلة 2' }
-    ];
-
-    if (appData.accessMode === 'full') {
-        categories.push(
-            { value: 'r1', label: 'الأفلام R1' },
-            { value: 'r2', label: 'الأفلام R2' },
-            { value: 's1', label: 'الأفلام S1' },
-            { value: 's2', label: 'الأفلام S2' },
-            { value: 'x1', label: 'الأفلام X1' },
-            { value: 'xsites', label: 'X SITES' },
-            { value: 'selected_r', label: 'أفلام مختارة R' },
-            { value: 'selected_s', label: 'أفلام مختارة S' },
-            { value: 'selected_x', label: 'أفلام مختارة X' },
-            { value: 'thursday_night', label: 'قسم ليلة الخميس' }
-        );
-    }
-
-    // قوائم الاختيار في قسم إضافة الأفلام
-    const bulkAddSection = document.getElementById('bulkAddSection');
-    if (bulkAddSection) {
-        bulkAddSection.innerHTML = '<option value="">اختر القسم</option>';
-        categories.forEach(cat => {
-            const option = document.createElement('option');
-            option.value = cat.value;
-            option.textContent = cat.label;
-            bulkAddSection.appendChild(option);
-        });
-    }
-
-    const manualMovieSection = document.getElementById('manualMovieSection');
-    if (manualMovieSection) {
-        manualMovieSection.innerHTML = '<option value="">اختر القسم</option>';
-        categories.forEach(cat => {
-            const option = document.createElement('option');
-            option.value = cat.value;
-            option.textContent = cat.label;
-            manualMovieSection.appendChild(option);
-        });
-    }
-
-    // قوائم الاختيار في قسم إدارة الأقسام
-    const selectedSection = document.getElementById('selectedSection');
-    if (selectedSection) {
-        selectedSection.innerHTML = '<option value="">اختر القسم</option>';
-        categories.forEach(cat => {
-            const option = document.createElement('option');
-            option.value = cat.value;
-            option.textContent = cat.label;
-            selectedSection.appendChild(option);
-        });
-    }
-
-    const targetSection = document.getElementById('targetSection');
-    if (targetSection) {
-        targetSection.innerHTML = '<option value="">اختر القسم</option>';
-        categories.forEach(cat => {
-            const option = document.createElement('option');
-            option.value = cat.value;
-            option.textContent = cat.label;
-            targetSection.appendChild(option);
-        });
-    }
-
-    // قوائم الاختيار في قسم إدارة المواقع
-    const targetSectionForSite = document.getElementById('targetSectionForSite');
-    if (targetSectionForSite) {
-        targetSectionForSite.innerHTML = '<option value="">اختر القسم</option>';
-        categories.forEach(cat => {
-            const option = document.createElement('option');
-            option.value = cat.value;
-            option.textContent = cat.label;
-            targetSectionForSite.appendChild(option);
-        });
-    }
-    
-    // قائمة المواقع
-    const sites = [...new Set(appData.movies.map(m => m.site))].sort();
-    const selectedSite = document.getElementById('selectedSite');
-    if (selectedSite) {
-        selectedSite.innerHTML = '<option value="">اختر الموقع</option>';
-        sites.forEach(site => {
-            const option = document.createElement('option');
-            option.value = site;
-            option.textContent = site;
-            selectedSite.appendChild(option);
-        });
-    }
-    
-    console.log("Finished populating control panel selects");
 }
