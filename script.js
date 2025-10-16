@@ -32,11 +32,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add listener for the new 'Load More' button
     const loadMoreBtn = document.getElementById('loadMoreBtn');
     if (loadMoreBtn) {
-        loadMoreBtn.addEventListener('click', () => {
+        loadMoreBtn.addEventListener('click', async () => {
             if (dataWorker) {
                 loadMoreBtn.textContent = 'جاري التحميل...';
                 loadMoreBtn.disabled = true;
                 dataWorker.postMessage({ command: 'loadNextChunk' });
+                // Also load remaining backup chunks if needed
+                await loadRemainingBackupChunks();
             }
         });
     }
@@ -119,9 +121,10 @@ async function initializeApplication() {
             }
         });
     }
-    await loadBackupMovies();
-    // Call the new worker-based initializer
+    // Initialize the worker first to show the loading indicator
     initializeApplicationWithWorker();
+    // Then load backup movies in parallel
+    loadBackupMovies();
 }
 
 function logout() {
@@ -366,7 +369,47 @@ async function loadBackupMovies() {
         'database_chunks/app_database6.json'
     ];
 
-    for (const file of chunkFiles) {
+    // Load only the first chunk initially, load the rest when needed
+    try {
+        const response = await fetch(chunkFiles[0]);
+        if (!response.ok) {
+            console.error(`Failed to fetch ${chunkFiles[0]}: ${response.statusText}`);
+        } else {
+            const data = await response.json();
+            if (data.movies_info) {
+                data.movies_info.forEach(movie => {
+                    const movieData = {
+                        id: movie.movies_id || movie.id || `movie_${Date.now()}_${Math.random()}`,
+                        title: movie.movies_name || movie.series_name || movie.name || 'بدون عنوان',
+                        imageUrl: movie.movies_img || movie.series_img || movie.img || 'https://via.placeholder.com/200x300?text=No+Image',
+                        link: movie.movies_href || movie.series_href || movie.href || '#',
+                        category: movie.movies_category || movie.category || 'all',
+                        hidden: movie.movies_hidden || movie.hidden || false,
+                        site: extractSiteName(movie.movies_href || movie.series_href || movie.href || ''),
+                        dateAdded: movie.dateAdded || movie.addedDate || new Date().toISOString(),
+                        isFavorite: movie.isFavorite || false
+                    };
+                    backupMovies.push(movieData);
+                });
+            }
+        }
+    } catch (error) {
+        console.error(`Error loading or parsing ${chunkFiles[0]}:`, error);
+    }
+
+    // Store remaining chunk files for later loading
+    window.remainingBackupChunks = chunkFiles.slice(1);
+    isBackupLoaded = true;
+    console.log(`Initial backup loaded with ${backupMovies.length} movies.`);
+}
+
+// Function to load remaining backup chunks when needed
+async function loadRemainingBackupChunks() {
+    if (!window.remainingBackupChunks || window.remainingBackupChunks.length === 0) return;
+
+    console.log("Loading remaining backup chunks...");
+
+    for (const file of window.remainingBackupChunks) {
         try {
             const response = await fetch(file);
             if (!response.ok) {
@@ -394,8 +437,9 @@ async function loadBackupMovies() {
             console.error(`Error loading or parsing ${file}:`, error);
         }
     }
-    isBackupLoaded = true;
-    console.log(`Backup loaded with ${backupMovies.length} movies.`);
+
+    window.remainingBackupChunks = [];
+    console.log(`All backup chunks loaded. Total: ${backupMovies.length} movies.`);
 }
 
 
